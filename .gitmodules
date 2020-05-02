@@ -1,0 +1,3 @@
+[submodule "chat-dapp"]
+	path = chat-dapp
+	url = https://github.com/textileio/dapp-template.git
