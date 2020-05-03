@@ -1,0 +1,6 @@
+we will implement a unique network. We will leverage bluezelle nodes as "routers" that service 100 peer swarms.
+ we will used hashed usernames to identify messages. 
+
+MILESTONE 1)
+ send out message with hashed username/GUID, and have server recieve it, mark them as "active in the swarm" and append them to a table along with groups they are associated with. 
+
