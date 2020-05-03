@@ -4,6 +4,9 @@ import hashlib
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Protocol.KDF import PBKDF2
+import json
+from base64 import b64encode, b64decode
+from Crypto.PublicKey import ECC
 
 
 
@@ -50,16 +53,18 @@ def passwordMake():
 
 def makeKeyFile():
     ##to be encrypted using password later
-    keyFile= open("clientsideData.txt","w+")
+    ## we will use JSON to build this file
+    json_out = {'GUID': GUID, 'happy' : password, "ToServerCommsPkey" :"Consider nested Dictionary with keys and expiry dates",
+     "privateKeysFromServer": "Consider nested dictionaries with keys + expirtation date", 
+     "sessionPubKeys": "NESTED DICTIONARY OF KEYS IDed by DestinationGUID, containting a NESTED DICTIONARY OF KEYS WITH THEIR 64 bit token key and the value as the pubkey ", 
+     "sessionPrivKeys": "a key value nested dictionary with the 64 bit sesion tokens+Destination GUID" }
 
-    keyFile.write(f"GUID = {GUID}")
+    with open('clientsideData.txt', 'w+') as keyFile:
+        json.dump(json_out, keyFile)
 
-    keyFile.write(f"\n Public Key For comms TO server below")
+    
 
-    keyFile.write(f"\n Private/ public key pairs for comms from server below")
-
-    keyFile.write(f"\n session public keys in format Destination GUID = Public key ")
-
+    
 
 def EncryptKeyFile(keyString):
     
@@ -112,13 +117,38 @@ def getSalty():
     print(get_random_bytes(32))
 
 
-def keygen(password):
+def AESkeygen(password):
     salt = b"\x94)\xba\x92\xe4|\x81\xdf\x0e< \x9eBX\xe1\xdb#\xf3>!(\x0c\x1eU\x1az\xbcB\x1e"
     key = PBKDF2(password, salt, dkLen=32) # Your key that you can encrypt with
     ## we return a saltes hash
     return key
 
+def decryptKeyFile(keyString):
+    #this will decrypt our keyfile to ram(using an array) (not to disk) so that 
+    print("I exist for later, not for the now")
 
+def addToKeyfile():
+    #this funciton decrypts the keyfile to disk, appends new keys to it, and overwrites old keyfile,
+    #then deletes the decrypted copy.
+    print("no you wont")
+
+
+def ECCkeygen():
+    #we use 521 bit ECC keys Yielding us great security for minimal overhead
+    key = ECC.generate(curve='P-521')
+    print("heres what the keygen made youuu")
+    print(key)
+    pkey = key.public_key()
+    print("your Public key is")
+    print(pkey)
+    if pkey == key:
+        print("FAIL")
+    else:
+        print("success")
+    #index 0 is private, then public is index 1
+    keylist = [key, pkey]
+    
+    return keylist
 
 
 username = getUserName()
@@ -127,9 +157,11 @@ GUID = hasher(username)
 
 password = passwordMake()
 
-encryptionPass = keygen(password)
+encryptionPass = AESkeygen(password)
 
 
 makeKeyFile()
 
 EncryptKeyFile(encryptionPass)
+
+ECCkeygen()
