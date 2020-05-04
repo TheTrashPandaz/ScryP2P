@@ -14,6 +14,8 @@ username = ""
 password = ""
 encryptionPass = ""
 GUID = ""
+keylist = []
+
 
 def hasher(plainWord):
 
@@ -54,8 +56,10 @@ def passwordMake():
 def makeKeyFile():
     ##to be encrypted using password later
     ## we will use JSON to build this file
-    json_out = {'GUID': GUID, 'happy' : password, "ToServerCommsPkey" :"Consider nested Dictionary with keys and expiry dates",
-     "privateKeysFromServer": "Consider nested dictionaries with keys + expirtation date", 
+    ToServerPubkeys = {"5/5/2020": "EccKey(curve= 'NIST P-521', point_x=1486465573938105822939004727077225179207099868113689171560681110264144705867423089183409181099797550085162698222601473208419282328197990992286367867277705139, point_y=5654383155596243396760237022173794653643096895890268988991343331019372753219888195890427812417285738948770838211075050279059652646721707744785732717512902299)"}
+    fromServerPrivKey = {"5/5/2020" : "ECC private KEY PLACEHOLDER"}
+    json_out = {'GUID': GUID, 'happy' : password, "ToServerCommsPkey" : ToServerPubkeys,
+     "privateKeysFromServer": fromServerPrivKey, 
      "sessionPubKeys": "NESTED DICTIONARY OF KEYS IDed by DestinationGUID, containting a NESTED DICTIONARY OF KEYS WITH THEIR 64 bit token key and the value as the pubkey ", 
      "sessionPrivKeys": "a key value nested dictionary with the 64 bit sesion tokens+Destination GUID" }
 
@@ -147,8 +151,17 @@ def ECCkeygen():
         print("success")
     #index 0 is private, then public is index 1
     keylist = [key, pkey]
-    
+
     return keylist
+
+def encryptWithEcc():
+    print("I need new modules")
+
+
+
+def ECCSignThings(signee):
+    print("I DOnt DO anything")
+
 
 
 username = getUserName()
@@ -159,9 +172,10 @@ password = passwordMake()
 
 encryptionPass = AESkeygen(password)
 
+#Index 0 is private index 1 is public
+
+keylist = ECCkeygen()
 
 makeKeyFile()
 
 EncryptKeyFile(encryptionPass)
-
-ECCkeygen()
