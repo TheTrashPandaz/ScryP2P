@@ -34,6 +34,13 @@ GUID = ""
 #GUID is our Globally Unique Identifier (A hashed usrname) that we use instead of IP
 keylist = []
 ##keyList holds our public and Private keys in use for the current session
+activeKeyList = {}
+#this is a dictionary of our keyfile, that will hold all of our stuff
+
+activeKeyFileChecksum = ""
+## This is a hash of the current key dictionary in ram, to be compared to the stored hash of the stored keyfile before dewcryption
+##the keyfile on disk hash is in the encrypted keyfile json under "checksum" is != an a sync funciton will update it
+keyfileChecksum = ""
 
 
 def hasher(plainWord):
@@ -85,13 +92,29 @@ def makeKeyFile():
      "privateKeysFromServer": fromServerPrivKey, 
      "sessionPubKeys": "NESTED DICTIONARY OF KEYS IDed by DestinationGUID, containting a NESTED DICTIONARY OF KEYS WITH THEIR 64 bit token key and the value as the pubkey ", 
      "sessionPrivKeys": "a key value nested dictionary with the 64 bit sesion tokens+Destination GUID" }
+    global keyfileChecksum
+
+    FormattedJson = json.dump(json_out)
+
+    keyfileChecksum = hasher(FormattedJson)
 
     with open('clientsideData.txt', 'w+') as keyFile:
         json.dump(json_out, keyFile)
 
     keyFile.close()
 
+def KeyCompare():
+    #load the keyfileChecksum from then end of the encrypted file
+    with open('encrypted.owo') as infile:
+        input_json = json.load(infile)
 
+    keyfileChecksum = input_json["plaintextChecksum"]
+
+    print(f"keyfileChecksum from file reads {keyfileChecksum}")
+    
+    ActiveCopyChecksum = json.dump()
+
+    if keyfileChecksum == #checksum of the one in ram
 
 def EncryptKeyFile(keyString):
     
@@ -124,7 +147,7 @@ def EncryptKeyFile(keyString):
     tag = tag.hex()
     ##here we are converting all  byte arrays to hex for json encoding
 
-    contents = {"IV": cipher.nonce, "tag": tag, "Data": ciphered_data}
+    contents = {"IV": cipher.nonce,"plaintextChecksum": keyfileChecksum, "tag": tag, "Data": ciphered_data}
     ##this is out dict where we store our hex encoded datda for json storage
     with open(output_file, 'w+') as encryptedFile:
         json.dump(contents, encryptedFile)
@@ -236,7 +259,7 @@ def SecureKeyGen():
         #diagnostic to check key length as 32 bytes after conversion below
         #print(f"the key length is {len(symKey)}")
 
-    print(f"your secure symetric sasla20 key is {symKey}") 
+    print(f"your secure symetric salsa20 key is {symKey}") 
     
     return symKey
 
