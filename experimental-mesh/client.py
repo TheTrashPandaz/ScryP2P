@@ -81,11 +81,11 @@ def login():
     # THis fucniton gets a username + password from the user and appends it to a list obj
     uname = ""
     
-    print("Please input a username")
+    print(colored("Please input a username", "yellow"))
     
     uname = input()
     
-    print("Please input your password")
+    print(colored("Please input your password", "yellow"))
 
     passWd = input()
 
@@ -97,6 +97,26 @@ def login():
 
     return loginCreds
 
+def setPass():
+
+
+    passWd = ""
+    tempVar = ""
+    print(colored("\nEnter a unique password, PROTIP: Combine 3 random words EG. PlungerMasterLamp", 'yellow'))
+    passWd= input()
+
+    print(colored("\nEnter your password again to Confirm", 'yellow'))
+
+    tempVar = input()
+
+    if tempVar == passWd:
+        
+        return passWd
+
+    else:
+        print(colored("ERROR: Passwords do not match", 'red'))
+        passWd = setPass()
+        return passWd
 
 
 def acctMake():
@@ -104,16 +124,17 @@ def acctMake():
     uname= ""
     passWd = ""
 
-    print('Please Enter a unique UserName. Randomize your handles fool!')
+    print(colored('Please Enter a unique UserName. Randomize your handles fool!', 'yellow'))
     
     uname = input()
 
 
     passWd = ""
 
-    print(f"\nEnter a unique password, PROTIP: Combine 3 random words EG. PlungerMasterLamp")
-
-    passWd = input()
+    passWd = setPass()
+    
+    if passWd == "":
+        setPass()
 
     #passWd = hasher(passWd)
 
@@ -350,7 +371,7 @@ def Launcher():
     storageArray = []
     if os.path.exists("encrypted.owo"):
         #we test if a keyvault exists
-        print("You are not a new user")
+        print("You are not a new user. Please Login.")
         
         storageArray = login()
         username = storageArray[0]
@@ -379,7 +400,7 @@ def Launcher():
         KeyCompare()
         
     else:
-        print("You are new.")
+        print("You are new. Welcome to ScryP2P.")
         
         print("Making new account")
 
