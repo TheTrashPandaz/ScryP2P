@@ -20,6 +20,7 @@ from Crypto.PublicKey import ECC #this handles pubkey/privkey generatinon and si
 
 from Crypto.Cipher import Salsa20 #this handles Sym enc of our chats
 
+from termcolor import colored #Lets Us print pretty colors
 
 
 keyfileChecksum = ""
@@ -46,17 +47,17 @@ keyfileChecksum = ""
 
 def MOTD():
     print("*******************************************************")
-    print(f"\n####################################################")
-    print(f"\n________-____________ScryP2P____________________-________")
+    print(colored("\n####################################################", 'red'))
+    print(colored("\n________-____________ScryP2P____________________-________", 'green'))
     print("\n")
-    print("\n  _________                    ____________________________ ")
-    print("\n /   _____/ ___________ ___.__.\______   \_____  \______   \ ")
-    print('\n \_____  \_/ ___\_  __ <   |  | |     ___//  ____/|     ___/')
-    print('\n /        \  \___|  | \/\___  | |    |   /       \|    |    ')
-    print('\n/_______  /\___  >__|   / ____| |____|   \_______ \____|    ')
-    print('\n        \/     \/       \/                       \/         ')
-    print('\n##############################################################')
-    print('\n__________Free speech is the Way To a Better Tommorrow________')
+    print(colored("\n  _________                    ____________________________ ", 'red'))
+    print(colored("\n /   _____/ ___________ ___.__.\______   \_____  \______   \ ", 'red'))
+    print(colored('\n \_____  \_/ ___\_  __ <   |  | |     ___//  ____/|     ___/', 'red'))
+    print(colored('\n /        \  \___|  | \/\___  | |    |   /       \|    |    ', 'red'))
+    print(colored('\n/_______  /\___  >__|   / ____| |____|   \_______ \____|    ', 'red'))
+    print(colored('\n        \/     \/       \/                       \/         ', 'red'))
+    print(colored('\n##############################################################', 'red'))
+    print(colored('\n__________Free speech is the Way To a Better Tommorrow________', 'green'))
     ###print('\n$$$$$$$$$$$$$$&&&&&&&&&&&&&&&&&&&&&&&&$$$$$$$$$$$$$$$$$$$$$$$$')
 
 
