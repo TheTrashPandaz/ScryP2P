@@ -21,12 +21,13 @@ from Crypto.PublicKey import ECC #this handles pubkey/privkey generatinon and si
 from Crypto.Cipher import Salsa20 #this handles Sym enc of our chats
 
 
+
 keyfileChecksum = ""
 #this holds a checksum of the keyfile
 username = ""
 ##this is our plaintext username
 password = ""
-##this is our plaintext password
+##this is our hashed password
 encryptionPass = ""
 #sha256 hashed aes ecrtuption pass
 
@@ -34,7 +35,7 @@ GUID = ""
 #GUID is our Globally Unique Identifier (A hashed usrname) that we use instead of IP
 keylist = []
 ##keyList holds our public and Private keys in use for the current session
-activeKeyList = {}
+activeKeyDict = {}
 #this is a dictionary of our keyfile, that will hold all of our stuff
 
 activeKeyFileChecksum = ""
@@ -43,31 +44,69 @@ activeKeyFileChecksum = ""
 keyfileChecksum = ""
 
 
+def MOTD():
+    print("*******************************************************")
+    print(f"\n####################################################")
+    print(f"\n________-____________ScryP2P____________________-________")
+    print("\n")
+    print("\n  _________                    ____________________________ ")
+    print("\n /   _____/ ___________ ___.__.\______   \_____  \______   \ ")
+    print('\n \_____  \_/ ___\_  __ <   |  | |     ___//  ____/|     ___/')
+    print('\n /        \  \___|  | \/\___  | |    |   /       \|    |    ')
+    print('\n/_______  /\___  >__|   / ____| |____|   \_______ \____|    ')
+    print('\n        \/     \/       \/                       \/         ')
+    print('\n##############################################################')
+    print('\n__________Free speech is the Way To a Better Tommorrow________')
+    ###print('\n$$$$$$$$$$$$$$&&&&&&&&&&&&&&&&&&&&&&&&$$$$$$$$$$$$$$$$$$$$$$$$')
+
+
+
+def AESkeygen(password):
+    salt = b"\x94)\xba\x92\xe4|\x81\xdf\x0e< \x9eBX\xe1\xdb#\xf3>!(\x0c\x1eU\x1az\xbcB\x1e"
+    key = PBKDF2(password, salt, dkLen=32) # Your key that you can encrypt with
+    ## we return a saltes hash
+    return key
+
 def hasher(plainWord):
     #this function will hash any string input with sha256
-    hashyGuy = ""
+    hashyGuy = AESkeygen(plainWord)
 
-    hashyGuy = hashlib.sha256(hashyGuy.encode()).hexdigest()
-
+    hashyGuy = hashyGuy.hex()
+    
     return hashyGuy
 
 
-def getUserName():
-    # THis fucniton gets a username from the user
+def login():
+    # THis fucniton gets a username + password from the user and appends it to a list obj
     uname = ""
     
     print("Please input a username")
     
     uname = input()
     
-    print(uname)
-    
-    return uname
+    print("Please input your password")
+
+    passWd = input()
+
+    loginCreds = []
+    #logincreds 0 is username, logincreds 1 is password
+    loginCreds.append(uname)
+    #passWd = hasher(passWd)
+    loginCreds.append(passWd)
+
+    return loginCreds
 
 
 
-def passwordMake():
+def acctMake():
     #this function gets the password from the user and hashes it
+    uname= ""
+    passWd = ""
+
+    print('Please Enter a unique UserName. Randomize your handles fool!')
+    
+    uname = input()
+
 
     passWd = ""
 
@@ -75,9 +114,16 @@ def passwordMake():
 
     passWd = input()
 
-    passWd = hasher(passWd)
+    #passWd = hasher(passWd)
 
-    return passWd
+    acctCreds = []
+    ## acctcreds holds acct details with 0 bring username and 1 being hashed pasword
+    
+    acctCreds.append(uname)
+
+    acctCreds.append(passWd)
+
+    return acctCreds
 
 
 def makeKeyFile():
@@ -92,9 +138,17 @@ def makeKeyFile():
      "privateKeysFromServer": fromServerPrivKey, 
      "sessionPubKeys": "NESTED DICTIONARY OF KEYS IDed by DestinationGUID, containting a NESTED DICTIONARY OF KEYS WITH THEIR 64 bit token key and the value as the pubkey ", 
      "sessionPrivKeys": "a key value nested dictionary with the 64 bit sesion tokens+Destination GUID" }
+     
+    global activeKeyDict
+
+    activeKeyDict = json_out
+     
+     #this stores this copy in ram for working with for our initial startup
+
     global keyfileChecksum
 
-    FormattedJson = json.dump(json_out)
+    FormattedJson = str(json_out)
+    
 
     keyfileChecksum = hasher(FormattedJson)
 
@@ -112,9 +166,17 @@ def KeyCompare():
 
     print(f"keyfileChecksum from file reads {keyfileChecksum}")
     
-    ActiveCopyChecksum = json.dump()
+    ActiveCopyChecksum = str(activeKeyDict)
+    
+    activeKeyFileChecksum = hasher(ActiveCopyChecksum)
 
-    if keyfileChecksum == #checksum of the one in ram
+    if keyfileChecksum == activeKeyFileChecksum:
+        #checksum of the keyfile in ram is compared to the checksum loaded from the encrypted file representing its keyfile
+        print("everything is equal")
+    
+    else:
+        print("nothing is the same")
+    #checksum of the one in ram is compared to the checksum loaded from the encrypted file
 
 def EncryptKeyFile(keyString):
     
@@ -124,14 +186,14 @@ def EncryptKeyFile(keyString):
     dataFile = open("clientsideData.txt", "r")
 
     if dataFile.mode == 'r':
-        print("success")
+
         data = dataFile.read()
-        print("byte conversion")
+        #byte conversion below
 
         data = data.encode('utf-8')
 
     else:
-         print("error. We will need to get public key from server first and sync you up.")
+        print("error. We will need to get public key from server first and sync you up.")
         ##We will call function here later to do this
 
     key = keyString
@@ -153,6 +215,9 @@ def EncryptKeyFile(keyString):
         json.dump(contents, encryptedFile)
     
     file_out.close()
+
+    os.remove('clientsideData.txt')
+    ##here we remove the plaintext file
 
      
 def decryptKeyFile(keyString):
@@ -176,9 +241,9 @@ def decryptKeyFile(keyString):
     
     original_data = cipher.decrypt_and_verify(ciphered_data, tag) # Decrypt and verify with the tag
     
-    print("THIS IS A TRIUMPH")
+    print("Password Success")
 
-    print(original_data)
+    #print(original_data)
 
     ##TODO convert OG data to dictionary for local use in ram
 
@@ -198,12 +263,6 @@ def getSalty():
     print(get_random_bytes(32))
 
 
-def AESkeygen(password):
-    salt = b"\x94)\xba\x92\xe4|\x81\xdf\x0e< \x9eBX\xe1\xdb#\xf3>!(\x0c\x1eU\x1az\xbcB\x1e"
-    key = PBKDF2(password, salt, dkLen=32) # Your key that you can encrypt with
-    ## we return a saltes hash
-    return key
-
 
 def addToKeyfile():
     #this funciton pulls the checksum from the encrypted text, compares against ram copies checksum, then if !=
@@ -215,15 +274,13 @@ def addToKeyfile():
 def ECCkeygen():
     #we use 521 bit ECC keys Yielding us great security for minimal overhead
     key = ECC.generate(curve='P-521')
-    print("heres what the keygen made youuu")
-    print(key)
+    
     pkey = key.public_key()
-    print("your Public key is")
-    print(pkey)
+
     if pkey == key:
         print("FAIL")
     else:
-        print("success")
+        print("successful ECC Keypair Generation")
     #index 0 is private, then public is index 1
     keylist = [key, pkey]
 
@@ -259,7 +316,7 @@ def SecureKeyGen():
         #diagnostic to check key length as 32 bytes after conversion below
         #print(f"the key length is {len(symKey)}")
 
-    print(f"your secure symetric salsa20 key is {symKey}") 
+    #print(f"your secure symetric salsa20 key is {symKey}") 
     
     return symKey
 
@@ -273,36 +330,102 @@ def symCrypt(plaintext, symKey):
     msg = cipher.nonce + cipher.encrypt(plaintext)
     
 
-    print(f"Your Nonce is {len(cipher.nonce)}")
+    #print(f"Your Nonce is {len(cipher.nonce)}")
     
-    print(f'Your encrypted salsa20 Message is {msg}')
+    #print(f'Your encrypted salsa20 Message is {msg}')
 
     return msg
  
 
+def Launcher():
+    MOTD()
+    global GUID
+    global username
+    global password
+    global encryptionPass
+    global keylist
+    global activeKeyDict
+    jsonHolder =  ""
+    storageArray = []
+    if os.path.exists("encrypted.owo"):
+        #we test if a keyvault exists
+        print("You are not a new user")
+        
+        storageArray = login()
+        username = storageArray[0]
+        password = storageArray[1]
+        GUID = hasher(username)
 
-username = getUserName()
+        encryptionPass = AESkeygen(password)
+        try:
+            jsonHolder = decryptKeyFile(encryptionPass)
 
-GUID = hasher(username)
+        except ValueError:
+            print("Incorrect Password")
+            Launcher()
 
-password = passwordMake()
+        activeKeyDict = json.loads(jsonHolder)
+        
+        
+      
+        if GUID != activeKeyDict["GUID"]:
+            print("Wrong Username")
+            Launcher()
 
-encryptionPass = AESkeygen(password)
+        elif GUID == activeKeyDict["GUID"]:
+            print("Correct Username")
+
+        KeyCompare()
+        
+    else:
+        print("You are new.")
+        
+        print("Making new account")
+
+    
+        storageArray = acctMake()
+
+        username = storageArray[0]
+
+        password = storageArray[1]
+
+        GUID = hasher(username)
+
+        keylist = ECCkeygen()
+        #this generates ECC keys
+
+        makeKeyFile()
+        ## this funciton makes a new keyfile and writes to it.
+
+        encryptionPass = AESkeygen(password)
+        #this turns our password into a key for our keybault
+
+        EncryptKeyFile(encryptionPass)
+
+Launcher()
+
+#username = getUserName()
+
+#GUID = hasher(username)
+
+#password = passwordMake()
+
+#encryptionPass = AESkeygen(password)
 
 #Index 0 is private index 1 is public
 
-keylist = ECCkeygen()
+#keylist = ECCkeygen()
 
-makeKeyFile()
-## this funciton makes a new keyfile and writes to it. Will later be nested in a func to check if keyfile exists
-
-EncryptKeyFile(encryptionPass)
+#EncryptKeyFile(encryptionPass) ## also deletes the plaintext keyfile #todo elim the plaintext from existing as a thing in disk
 
 symKey = SecureKeyGen() #symKey is our one time use symetric salsa20 key
 
 symCrypt('I am a jelly donut', symKey)
 
+
 decryptKeyFile(encryptionPass)
+##this function loads a copy of the keyfile from disk into ram. must build a perent funditon to convert json to a disciotnary
+
 
 
 ##Test Our functions before we organize them into a beautiful flow. This is the stage we are in. 
