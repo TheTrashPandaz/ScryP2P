@@ -1,5 +1,8 @@
 import asyncio
 
+from datetime import datetime
+#this module enables us to get a timestamp
+
 import os #we use this library to handle keyfile operations with storing keys and other things locally
 
 import hashlib #handles our hashing
@@ -43,6 +46,10 @@ activeKeyFileChecksum = ""
 ## This is a hash of the current key dictionary in ram, to be compared to the stored hash of the stored keyfile before dewcryption
 ##the keyfile on disk hash is in the encrypted keyfile json under "checksum" is != an a sync funciton will update it
 keyfileChecksum = ""
+
+SimulatedBluezelle = {}
+##This Is a simulatede bluezelle
+
 
 
 def MOTD():
@@ -128,6 +135,13 @@ def acctMake():
     
     uname = input()
 
+    while userNameCheck(uname):
+        #this should check if the username exists
+        print(colored("ERROR USERNAME IN USE", 'green'))
+
+        print(colored('Please Enter a unique UserName. Randomize your handles fool!', 'yellow'))
+    
+        uname = input()
 
     passWd = ""
 
@@ -358,6 +372,37 @@ def symCrypt(plaintext, symKey):
 
     return msg
  
+def userNameCheck(username):
+    AlreadyInUse = False
+    #this is the varible to return based on if we can use the username or not false means we can use it
+    if os.path.exists("FakeBlu.txt"):
+        testGUID = hasher(username)
+        #we hash the username into a GUID
+
+        with open('FakeBlu.txt') as FileLoad:
+            input_json = json.load(FileLoad)
+        
+        try:
+
+            Localkey = input_json[f"user{testGUID}"]
+            print("Username In use")
+            return True
+
+        except KeyError:
+            
+            print("username not in use")
+
+            return False
+
+        except json.decoder.JSONDecodeError:
+            print("Network Corruption, Contact a SysAdmin")
+            return True
+
+    else:
+        print("Nobody currently on network/ network unavailible")
+
+        return False
+
 
 def Launcher():
     MOTD()
@@ -407,6 +452,8 @@ def Launcher():
     
         storageArray = acctMake()
 
+        
+
         username = storageArray[0]
 
         password = storageArray[1]
@@ -424,8 +471,41 @@ def Launcher():
 
         EncryptKeyFile(encryptionPass)
 
-Launcher()
 
+
+def generateTimestamp():
+    TimeStamp = datetime.now().timestamp()
+    #this function outputs a timestamp in seconds since unix epoch
+
+    return TimeStamp
+
+
+    
+
+def NetworkAnnounce():
+    #this function announces us to the network. We will use the Bluzelle announce function to continually update timestamp
+    #we will also pull all of our data from here for other nodes
+    global GUID
+    global keylist
+    timestamp = generateTimestamp()
+    stringKeys = str(keylist[1])
+    print("Now appending public Key and GUID with timestamp to the dictionary")
+    #TODO include way to count entries and add our number here eg users(guid) or user1, user2
+    users = {"GUID": GUID, "PublicKey": stringKeys, "TimeStamp": timestamp}
+    container = {f"user{GUID}": users}
+
+    ## we will call a func to see if this entry exists. This will determine overwrite or not. 
+    # on the make we must check GUID against usrers
+    with open('FakeBlu.txt', 'w+') as FakeBlu:
+        json.dump(container, FakeBlu)
+
+    FakeBlu.close()
+    
+    print("we are now on network")
+
+
+Launcher()
+generateTimestamp()
 #username = getUserName()
 
 #GUID = hasher(username)
@@ -436,7 +516,7 @@ Launcher()
 
 #Index 0 is private index 1 is public
 
-#keylist = ECCkeygen()
+keylist = ECCkeygen()
 
 #EncryptKeyFile(encryptionPass) ## also deletes the plaintext keyfile #todo elim the plaintext from existing as a thing in disk
 
@@ -444,10 +524,7 @@ symKey = SecureKeyGen() #symKey is our one time use symetric salsa20 key
 
 symCrypt('I am a jelly donut', symKey)
 
-
-decryptKeyFile(encryptionPass)
-##this function loads a copy of the keyfile from disk into ram. must build a perent funditon to convert json to a disciotnary
-
+NetworkAnnounce()
 
 
 ##Test Our functions before we organize them into a beautiful flow. This is the stage we are in. 
