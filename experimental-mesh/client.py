@@ -480,7 +480,7 @@ def generateTimestamp():
     return TimeStamp
 
 
-    
+
 
 def NetworkAnnounce():
     #this function announces us to the network. We will use the Bluzelle announce function to continually update timestamp
@@ -496,16 +496,69 @@ def NetworkAnnounce():
 
     ## we will call a func to see if this entry exists. This will determine overwrite or not. 
     # on the make we must check GUID against usrers
-    with open('FakeBlu.txt', 'w+') as FakeBlu:
-        json.dump(container, FakeBlu)
+    if os.path.exists("FakeBlu.txt"):
 
-    FakeBlu.close()
+        with open('FakeBlu.txt') as FileLoad:
+            input_json = json.load(FileLoad)
+            #DebuggingStat  print(f'heres input_json {input_json}')
+
+            input_json.update(container)
+            ##DebuggingStatment print(f"inside update = {input_json}")
+        FileLoad.close()
+       ##debuggingStatment print(f"here is outside {input_json}")
+
+        with open('FakeBlu.txt', 'w') as FakeBlu:
+            json.dump(input_json, FakeBlu)
+        FakeBlu.close()
+            #FileLoad.write(updatedJson)
+            ##json.dump(container, FakeBlu)
+        print("Successful Network Update")
+        
+    else:
+        with open('FakeBlu.txt', 'w+') as FakeBlu:
+            json.dump(container, FakeBlu)
+        FakeBlu.close()
     
     print("we are now on network")
 
+def GetOnlineUsers():
+    #this is a procces that will be async and check if a user is online within the swarm and return a list of onlineUsers in swarm
+
+    onlineUserList = []
+    #this is a list of our online users
+
+    with open('FakeBlu.txt', 'r') as UserList:
+        #here we would be openiong our file containing json data (Fake Bluzelle)
+        data = json.load(UserList)
+        #here we load the json data
+        UserList.close()
+
+    for key in data:
+        #we iteratew thru the toplevel keys her
+        scope = data[key]
+        #here we narrow the scop so we can get inside nested dictionaries
+        stamp = scope["TimeStamp"]
+        userID = scope['GUID']
+        print(stamp)
+        currentTime = generateTimestamp()
+        if stamp < (currentTime - 5000):
+           ## here we are documenting what users are online
+            print(f"User {userID} is offline")
+
+        else:
+            print(f'User {userID} ia online')
+            onlineUserList.append(userID)
+
+
+    print(onlineUserList)
+    print(f"there are {len(onlineUserList)} users in swarm")
+
+    return(onlineUserList)
+
 
 Launcher()
-generateTimestamp()
+
+GetOnlineUsers()
 #username = getUserName()
 
 #GUID = hasher(username)
