@@ -200,7 +200,7 @@ def KeyCompare():
 
     keyfileChecksum = input_json["plaintextChecksum"]
 
-    print(f"keyfileChecksum from file reads {keyfileChecksum}")
+    #print(f"keyfileChecksum from file reads {keyfileChecksum}")
     
     ActiveCopyChecksum = str(activeKeyDict)
     
@@ -208,10 +208,11 @@ def KeyCompare():
 
     if keyfileChecksum == activeKeyFileChecksum:
         #checksum of the keyfile in ram is compared to the checksum loaded from the encrypted file representing its keyfile
-        print("everything is equal")
-    
+        print(colored("*", "yellow"))
+        #print("everything is equal")
+        
     else:
-        print("nothing is the same")
+        print("Mismatch, Updating keyfile")
     #checksum of the one in ram is compared to the checksum loaded from the encrypted file
 
 def EncryptKeyFile(keyString):
@@ -288,10 +289,41 @@ def decryptKeyFile(keyString):
 
 
 async def sendActive():
+    
     #this is a fucntion that will send the username to bluzelle every 5 mins to let them know we are in the swarm, what node we are
     #on and the whole 9. Will be using our tunneling/encryption scheme in a pretty funtion
-    sleep(5)
-    print(f"sending key {username} to bluezelle")
+    sleep(300)
+
+    global keylist
+    timestamp = generateTimestamp()
+    #this generates a timestamp in seconds since unix epoch
+    stringKeys = str(keylist[1])
+    print("Now appending public Key and GUID with timestamp to the dictionary")
+    #TODO include way to count entries and add our number here eg users(guid) or user1, user2
+    users = {"GUID": GUID, "PublicKey": stringKeys, "TimeStamp": timestamp}
+    container = {f"user{GUID}": users}
+
+    ## we will call a func to see if this entry exists. This will determine if we can connect. 
+    # on the make we must check GUID against usrers
+    if os.path.exists("FakeBlu.txt"):
+
+        with open('FakeBlu.txt') as FileLoad:
+            input_json = json.load(FileLoad)
+            #DebuggingStat  print(f'heres input_json {input_json}')
+
+            input_json.update(container)
+            ##DebuggingStatment print(f"inside update = {input_json}")
+        FileLoad.close()
+
+        with open('FakeBlu.txt', 'w') as FakeBlu:
+            json.dump(input_json, FakeBlu)
+        FakeBlu.close()
+            #FileLoad.write(updatedJson)
+            ##json.dump(container, FakeBlu)
+        print(f"sending key {username}'s update timetamp to bluezelle")
+
+    else:
+        print('Network Connection Lost')
 
 def getSalty():
     #for when we need to generate a salt
@@ -330,9 +362,6 @@ def encryptWithEcc():
 def ECCSignThings(signee):
     print("I DOnt DO anything")
 
-
-def EncryptText(plaintext):
-    plaintext = plaintext.encode('utf-8')
     
 
 def SecureKeyGen():
@@ -405,6 +434,7 @@ def userNameCheck(username):
 
 
 def Launcher():
+    #this is our initialization it detects if the keyvault exist and logs in and decrypts 
     MOTD()
     global GUID
     global username
@@ -439,11 +469,10 @@ def Launcher():
             print("Wrong Username")
             Launcher()
 
-        elif GUID == activeKeyDict["GUID"]:
-            print("Correct Username")
+    
 
         KeyCompare()
-        
+        #this tests if the copy in memory is newer than the file on disk
     else:
         print("You are new. Welcome to ScryP2P.")
         
@@ -488,6 +517,7 @@ def NetworkAnnounce():
     global GUID
     global keylist
     timestamp = generateTimestamp()
+    #this generates a timestamp in seconds since unix epoch
     stringKeys = str(keylist[1])
     print("Now appending public Key and GUID with timestamp to the dictionary")
     #TODO include way to count entries and add our number here eg users(guid) or user1, user2
@@ -539,20 +569,20 @@ def GetOnlineUsers():
         #here we narrow the scop so we can get inside nested dictionaries
         stamp = scope["TimeStamp"]
         userID = scope['GUID']
-        print(stamp)
         currentTime = generateTimestamp()
         if stamp < (currentTime - 5000):
            ## here we are documenting what users are online
-            print(f"User {userID} is offline")
+            print(colored(f"User {userID} is offline", 'red'))
 
         else:
-            print(f'User {userID} ia online')
+            print(colored(f"User {userID} is online", 'green'))
             onlineUserList.append(userID)
+    #this appends active users to a list
 
-
-    print(onlineUserList)
-    print(f"there are {len(onlineUserList)} users in swarm")
-
+    #print(onlineUserList)
+    print(colored(f"there are {len(onlineUserList)} users in swarm", 'blue'))
+    #these are debugging statments but they show how many users in swarm this canbe used for an interface in our website.
+    #in prod this func will be async.
     return(onlineUserList)
 
 
