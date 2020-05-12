@@ -34,7 +34,8 @@ password = ""
 ##this is our hashed password
 encryptionPass = ""
 #sha256 hashed aes ecrtuption pass
-
+bucketNumber = "0"
+##bucket number is the bucket we belong to defaults to zero. We will store our bucket ID in the keyFile
 GUID = ""
 #GUID is our Globally Unique Identifier (A hashed usrname) that we use instead of IP
 keylist = []
@@ -500,7 +501,84 @@ def Launcher():
 
         EncryptKeyFile(encryptionPass)
 
+def GetBucket():
+    #here we read availible "buckets" and their populations from the network.
+    # if network population is above 150 we make a new bucket, and become a member of 2 buckets until our new active bucket
+    # population is at least 50.  When we make a new Bucket the 2nd bucket will only list GUIDS until pop = 50. If no bucket is found we make a new one. When we generate a bucket code we use a 64Bit
+    #Random Number and return it in an array. The array will only have one index if we are not members of 2 buckets. 
+    #security can be further enhanced by connecting via a VPN/Mullvad/I2P (future improvment)
+    AlreadyBucket = False
+    #this is a boolean we use to test if we already belong to a bucket
+    finalBucket = []
+    #this is the array we use to return the bucket we are going to use
+    BucketList = []
+    global bucketNumber
+    #this is the bucket that we belong to
+    if bucketNumber != "0":
+        AlreadyBucket = True
 
+    while AlreadyBucket == True:
+        print(colored("You already belong to bucket. Do you want to join a new one? (Y/N).", "yellow"))
+        userResponse = input()
+        if userResponse == "Y":
+            AlreadyBucket = False
+        else:
+            print(colored("Using your current bucket.", "green"))
+            finalBucket.append(bucketNumber)
+            return finalBucket
+
+    if AlreadyBucket == False:
+        with open('FakeBlu.txt', 'r') as UserList:
+            #here we would be openiong our file containing json data (Fake Bluzelle)
+            data = json.load(UserList)
+            #here we load the json data
+            UserList.close()
+
+        for key in data:
+            #we iteratew thru the toplevel keys her
+            scope = data[key]
+            try:
+            #here we narrow the scop so we can get inside nested dictionaries
+                stamp = scope["BucketNumber"]
+                userID = scope['TimeStamp']
+        
+                currentTime = generateTimestamp()
+                # here we Look for buckets with users online in them
+                if UserID > (currentTime - 5000):
+                ## here we are documenting what users are online
+                    print(colored(f"Bucket {stamp} found with offline users", 'blue'))
+
+                else:
+                    print(colored(f"Bucket {stamp} is found with online", 'yellow'))
+                    BucketList.append(stamp)
+                    #this appends active users to a list
+            except KeyError:
+                continue
+
+        #print(onlineUserList)
+        print(colored(f"There are {len(BucketList)} availible buckets", 'blue'))
+        if len(BucketList) == 0:
+        ## if no buckets are found we will generate a 64 bit bucket ID, test to make sure it is not in use and use it.
+        ## we will use another function to fill out a "buckets section" in the key value store"
+            randomID = (get_random_bytes(32))
+            bucketID = randomID.hex()
+            #bucketID = (hasher(bucketID))
+            print(f"New bucket ID before testing for conflicts is {bucketID}")
+            #print(f"Characters in ID is {len(bucketID)}")
+        
+        finalBucket.append(bucketID)
+
+        if len(BucketList) > 1:
+        #here we will also refine the bucketList to only buckets with populations between 50 and 100, if none are found,
+        #we will simply use the bucket with the highest population availible
+            contents = len(BucketList)
+            usefulNumber = random.eandint(0,contents)
+            finalBucket = bucketList[usefulNumber]
+
+
+    #no matter if we find a Bucket to belong to we will either use an existing one or return one
+    
+    return finalBucket
 
 def generateTimestamp():
     TimeStamp = datetime.now().timestamp()
@@ -609,6 +687,6 @@ symCrypt('I am a jelly donut', symKey)
 
 NetworkAnnounce()
 
-
+GetBucket()
 ##Test Our functions before we organize them into a beautiful flow. This is the stage we are in. 
 ##TODO decrypt salsa20 messages. Also make the salsa20 into nice organized JSON files for transfer over the 'Net
