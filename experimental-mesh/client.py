@@ -3,6 +3,8 @@ import asyncio
 from datetime import datetime
 #this module enables us to get a timestamp
 
+import random
+
 import os #we use this library to handle keyfile operations with storing keys and other things locally
 
 import hashlib #handles our hashing
@@ -34,8 +36,8 @@ password = ""
 ##this is our hashed password
 encryptionPass = ""
 #sha256 hashed aes ecrtuption pass
-bucketNumber = "0"
-##bucket number is the bucket we belong to defaults to zero. We will store our bucket ID in the keyFile
+bucketNumber = []
+##bucket number is the bucket we belong to defaults to. We will store our bucket ID in the keyFile
 GUID = ""
 #GUID is our Globally Unique Identifier (A hashed usrname) that we use instead of IP
 keylist = []
@@ -171,7 +173,7 @@ def makeKeyFile():
     ## we will use JSON to build this file
     ToServerPubkeys = {"5/5/2020": "EccKey(curve= 'NIST P-521', point_x=1486465573938105822939004727077225179207099868113689171560681110264144705867423089183409181099797550085162698222601473208419282328197990992286367867277705139, point_y=5654383155596243396760237022173794653643096895890268988991343331019372753219888195890427812417285738948770838211075050279059652646721707744785732717512902299)"}
     fromServerPrivKey = {"5/5/2020" : "ECC private KEY PLACEHOLDER"}
-    json_out = {'GUID': GUID, 'happy' : password, "ToServerCommsPkey" : ToServerPubkeys,
+    json_out = {'GUID': GUID, 'BucketNumber' : bucketNumber[0], "ToServerCommsPkey" : ToServerPubkeys,
      "privateKeysFromServer": fromServerPrivKey, 
      "sessionPubKeys": "NESTED DICTIONARY OF KEYS IDed by DestinationGUID, containting a NESTED DICTIONARY OF KEYS WITH THEIR 64 bit token key and the value as the pubkey ", 
      "sessionPrivKeys": "a key value nested dictionary with the 64 bit sesion tokens+Destination GUID" }
@@ -216,23 +218,37 @@ def KeyCompare():
         print("Mismatch, Updating keyfile")
     #checksum of the one in ram is compared to the checksum loaded from the encrypted file
 
-def EncryptKeyFile(keyString):
-    
+def EncryptKeyFile(keyString, bucketNumber):
     
     output_file = 'encrypted.owo'
+    ToServerPubkeys = {"5/5/2020": "EccKey(curve= 'NIST P-521', point_x=1486465573938105822939004727077225179207099868113689171560681110264144705867423089183409181099797550085162698222601473208419282328197990992286367867277705139, point_y=5654383155596243396760237022173794653643096895890268988991343331019372753219888195890427812417285738948770838211075050279059652646721707744785732717512902299)"}
+    
+    fromServerPrivKey = {"5/5/2020" : "ECC private KEY PLACEHOLDER"}
+    
+    data = {'GUID': GUID, 'BucketNumber' : bucketNumber[0], "ToServerCommsPkey" : ToServerPubkeys,
+     "privateKeysFromServer": fromServerPrivKey, 
+     "sessionPubKeys": "NESTED DICTIONARY OF KEYS IDed by DestinationGUID, containting a NESTED DICTIONARY OF KEYS WITH THEIR 64 bit token key and the value as the pubkey ", 
+     "sessionPrivKeys": "a key value nested dictionary with the 64 bit sesion tokens+Destination GUID" }
+     
+    global activeKeyDict
 
-    dataFile = open("clientsideData.txt", "r")
+    activeKeyDict = data
+     
+     #this stores this copy in ram for working with for our initial startup
 
-    if dataFile.mode == 'r':
+    
 
-        data = dataFile.read()
-        #byte conversion below
+    FormattedJson = str(data)
+    #here we make the data into a string so we can hash it
 
-        data = data.encode('utf-8')
+    keyfileChecksum = hasher(FormattedJson)
 
-    else:
-        print("error. We will need to get public key from server first and sync you up.")
-        ##We will call function here later to do this
+    data = json.dumps(data)
+    #data = FormattedJson
+
+    data = data.encode('utf-8')
+
+
 
     key = keyString
 
@@ -254,7 +270,7 @@ def EncryptKeyFile(keyString):
     
     file_out.close()
 
-    os.remove('clientsideData.txt')
+    #os.remove('clientsideData.txt')
     ##here we remove the plaintext file
 
      
@@ -263,11 +279,11 @@ def decryptKeyFile(keyString):
     with open('encrypted.owo') as infile:
         input_json = json.load(infile)
 
+    
     # Get all the fields from the dictionary read from the JSON file
     ciphered_data = input_json['Data']
     nonce = input_json['IV']
     tag = input_json['tag']
-
     ciphered_data = bytes.fromhex(ciphered_data)
     nonce = bytes.fromhex(nonce)
     tag = bytes.fromhex(tag)
@@ -285,6 +301,9 @@ def decryptKeyFile(keyString):
 
     ##TODO convert OG data to dictionary for local use in ram
 
+    #OGdata = original_data.decode('utf-8').replace("'", '"')
+
+    
     return original_data
 
 
@@ -294,6 +313,7 @@ async def sendActive():
     #this is a fucntion that will send the username to bluzelle every 5 mins to let them know we are in the swarm, what node we are
     #on and the whole 9. Will be using our tunneling/encryption scheme in a pretty funtion
     sleep(300)
+    global bucketNumber
 
     global keylist
     timestamp = generateTimestamp()
@@ -301,7 +321,8 @@ async def sendActive():
     stringKeys = str(keylist[1])
     print("Now appending public Key and GUID with timestamp to the dictionary")
     #TODO include way to count entries and add our number here eg users(guid) or user1, user2
-    users = {"GUID": GUID, "PublicKey": stringKeys, "TimeStamp": timestamp}
+    users = {"GUID": GUID, "PublicKey": stringKeys, "TimeStamp": timestamp, "BucketNumber": bucketNumber[0]}
+    
     container = {f"user{GUID}": users}
 
     ## we will call a func to see if this entry exists. This will determine if we can connect. 
@@ -443,6 +464,8 @@ def Launcher():
     global encryptionPass
     global keylist
     global activeKeyDict
+    global bucketNumber
+    
     jsonHolder =  ""
     storageArray = []
     if os.path.exists("encrypted.owo"):
@@ -453,16 +476,17 @@ def Launcher():
         username = storageArray[0]
         password = storageArray[1]
         GUID = hasher(username)
-
         encryptionPass = AESkeygen(password)
-        try:
-            jsonHolder = decryptKeyFile(encryptionPass)
+        #try:
+        jsonHolder = decryptKeyFile(encryptionPass)
 
-        except ValueError:
-            print("Incorrect Password")
-            Launcher()
+        #except ValueError:
+        #print("Incorrect Password")
+        #Launcher()
+        #print(f"jsonHolder is {jsonHolder}")
 
         activeKeyDict = json.loads(jsonHolder)
+
         
         
       
@@ -470,18 +494,26 @@ def Launcher():
             print("Wrong Username")
             Launcher()
 
-    
+        GUID = activeKeyDict["GUID"]
+        bucketNumber.append(activeKeyDict["BucketNumber"])
+
+        NetworkAnnounce(bucketNumber)
 
         KeyCompare()
         #this tests if the copy in memory is newer than the file on disk
+        
     else:
         print("You are new. Welcome to ScryP2P.")
         
         print("Making new account")
+        
+        
+        bucketNumber = GetBucket()
 
-    
+        print(f'Bucketnumber is {bucketNumber} FUCK')
         storageArray = acctMake()
 
+        
         
 
         username = storageArray[0]
@@ -493,13 +525,13 @@ def Launcher():
         keylist = ECCkeygen()
         #this generates ECC keys
 
-        makeKeyFile()
+        #makeKeyFile()
         ## this funciton makes a new keyfile and writes to it.
-
+        NetworkAnnounce(bucketNumber)
         encryptionPass = AESkeygen(password)
         #this turns our password into a key for our keybault
 
-        EncryptKeyFile(encryptionPass)
+        EncryptKeyFile(encryptionPass, bucketNumber)
 
 def GetBucket():
     #here we read availible "buckets" and their populations from the network.
@@ -514,7 +546,23 @@ def GetBucket():
     BucketList = []
     global bucketNumber
     #this is the bucket that we belong to
-    if bucketNumber != "0":
+    try:
+        bucketNumber.append(activeKeyDict["BucketNumber"])
+
+        print("Found bucket number within keyfile")
+        #todo check
+        AlreadyBucket = True
+
+    except KeyError:
+        print("No key Found")
+
+    except IndexError:
+        print(activeKeyDict["BucketNumber"])
+        print("No bucket ID found from the keyfile")
+        
+    if len(bucketNumber) != 0:
+
+
         AlreadyBucket = True
 
     while AlreadyBucket == True:
@@ -526,8 +574,26 @@ def GetBucket():
             print(colored("Using your current bucket.", "green"))
             finalBucket.append(bucketNumber)
             return finalBucket
+    if os.path.exists("FakeBlu.txt"):
+        print(colored("***********", 'red'))
+
+    else:
+         ## if no buckets are found we will generate a 64 bit bucket ID, test to make sure it is not in use and use it.
+        ## we will use another function to fill out a "buckets section" in the key value store"
+            randomID = (get_random_bytes(32))
+            bucketID = randomID.hex()
+            #bucketID = (hasher(bucketID))
+            print(f"New bucket ID before testing for conflicts is {bucketID}")
+            #print(f"Characters in ID is {len(bucketID)}")
+        
+            finalBucket.append(bucketID)
+
+            return finalBucket
 
     if AlreadyBucket == False:
+        
+
+
         with open('FakeBlu.txt', 'r') as UserList:
             #here we would be openiong our file containing json data (Fake Bluzelle)
             data = json.load(UserList)
@@ -540,16 +606,16 @@ def GetBucket():
             try:
             #here we narrow the scop so we can get inside nested dictionaries
                 stamp = scope["BucketNumber"]
-                userID = scope['TimeStamp']
+                time = scope['TimeStamp']
         
                 currentTime = generateTimestamp()
                 # here we Look for buckets with users online in them
-                if UserID > (currentTime - 5000):
+                if time < (currentTime - 5000):
                 ## here we are documenting what users are online
-                    print(colored(f"Bucket {stamp} found with offline users", 'blue'))
+                    print(colored(f"Bucket number {stamp} found with offline users", 'blue'))
 
                 else:
-                    print(colored(f"Bucket {stamp} is found with online", 'yellow'))
+                    print(colored(f"Bucket number {stamp} is found with online useres", 'yellow'))
                     BucketList.append(stamp)
                     #this appends active users to a list
             except KeyError:
@@ -566,16 +632,17 @@ def GetBucket():
             print(f"New bucket ID before testing for conflicts is {bucketID}")
             #print(f"Characters in ID is {len(bucketID)}")
         
-        finalBucket.append(bucketID)
+            finalBucket.append(bucketID)
 
         if len(BucketList) > 1:
         #here we will also refine the bucketList to only buckets with populations between 50 and 100, if none are found,
         #we will simply use the bucket with the highest population availible
-            contents = len(BucketList)
-            usefulNumber = random.eandint(0,contents)
-            finalBucket = bucketList[usefulNumber]
+            contents = (len(BucketList) - 1)
+            usefulNumber = random.randint(0,contents)
+            finalBucket.append(BucketList[usefulNumber])
 
-
+        elif len(BucketList) == 1:
+            finalBucket = BucketList
     #no matter if we find a Bucket to belong to we will either use an existing one or return one
     
     return finalBucket
@@ -589,17 +656,31 @@ def generateTimestamp():
 
 
 
-def NetworkAnnounce():
+def NetworkAnnounce(bucketNumber):
     #this function announces us to the network. We will use the Bluzelle announce function to continually update timestamp
     #we will also pull all of our data from here for other nodes
     global GUID
     global keylist
+    
+    print(bucketNumber)
+    print(f"len of bucketNumber is {len(bucketNumber)}")
+    
+
+    if len(keylist) == 0:
+        keylist = ECCkeygen()
+
+    if len(bucketNumber) == 0:
+        bucketNumber.append(activeKeyDict['BucketNumber'])
+
     timestamp = generateTimestamp()
+    #print(keylist)
     #this generates a timestamp in seconds since unix epoch
+    #print(f'this is keylist1 {keylist[1]}')
     stringKeys = str(keylist[1])
     print("Now appending public Key and GUID with timestamp to the dictionary")
     #TODO include way to count entries and add our number here eg users(guid) or user1, user2
-    users = {"GUID": GUID, "PublicKey": stringKeys, "TimeStamp": timestamp}
+    print(f'bucket number is {bucketNumber}')
+    users = {"GUID": GUID, "PublicKey": stringKeys, "TimeStamp": timestamp, "BucketNumber": bucketNumber[0]}
     container = {f"user{GUID}": users}
 
     ## we will call a func to see if this entry exists. This will determine overwrite or not. 
@@ -685,8 +766,8 @@ symKey = SecureKeyGen() #symKey is our one time use symetric salsa20 key
 
 symCrypt('I am a jelly donut', symKey)
 
-NetworkAnnounce()
+#NetworkAnnounce()
 
-GetBucket()
+#GetBucket()
 ##Test Our functions before we organize them into a beautiful flow. This is the stage we are in. 
 ##TODO decrypt salsa20 messages. Also make the salsa20 into nice organized JSON files for transfer over the 'Net
