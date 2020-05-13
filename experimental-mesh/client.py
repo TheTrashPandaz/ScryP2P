@@ -510,7 +510,7 @@ def Launcher():
         
         bucketNumber = GetBucket()
 
-        print(f'Bucketnumber is {bucketNumber} FUCK')
+        
         storageArray = acctMake()
 
         
@@ -554,7 +554,7 @@ def GetBucket():
         AlreadyBucket = True
 
     except KeyError:
-        print("No key Found")
+        print(colored("~~~~~~~~~~~~~", "yellow"))
 
     except IndexError:
         print(activeKeyDict["BucketNumber"])
@@ -662,8 +662,8 @@ def NetworkAnnounce(bucketNumber):
     global GUID
     global keylist
     
-    print(bucketNumber)
-    print(f"len of bucketNumber is {len(bucketNumber)}")
+    #print(bucketNumber)
+    #print(f"len of bucketNumber is {len(bucketNumber)}")
     
 
     if len(keylist) == 0:
