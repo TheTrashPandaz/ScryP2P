@@ -1,5 +1,10 @@
 import asyncio
 
+from urllib.request import urlopen
+
+import re
+
+
 from datetime import datetime
 #this module enables us to get a timestamp
 
@@ -477,12 +482,12 @@ def Launcher():
         password = storageArray[1]
         GUID = hasher(username)
         encryptionPass = AESkeygen(password)
-        #try:
-        jsonHolder = decryptKeyFile(encryptionPass)
+        try:
+            jsonHolder = decryptKeyFile(encryptionPass)
 
-        #except ValueError:
-        #print("Incorrect Password")
-        #Launcher()
+        except ValueError:
+            print("Incorrect Password")
+            Launcher()
         #print(f"jsonHolder is {jsonHolder}")
 
         activeKeyDict = json.loads(jsonHolder)
@@ -498,6 +503,7 @@ def Launcher():
         bucketNumber.append(activeKeyDict["BucketNumber"])
 
         NetworkAnnounce(bucketNumber)
+        BucketAnnounce(bucketNumber)
 
         KeyCompare()
         #this tests if the copy in memory is newer than the file on disk
@@ -528,6 +534,9 @@ def Launcher():
         #makeKeyFile()
         ## this funciton makes a new keyfile and writes to it.
         NetworkAnnounce(bucketNumber)
+        #Here we use this func to add our user to the swarm, under one simulated NOSQL key
+        BucketAnnounce(bucketNumber)
+        #here we add our Bucket info to the NoSQL DB and add our IP to the bucket
         encryptionPass = AESkeygen(password)
         #this turns our password into a key for our keybault
 
@@ -583,7 +592,7 @@ def GetBucket():
             randomID = (get_random_bytes(32))
             bucketID = randomID.hex()
             #bucketID = (hasher(bucketID))
-            print(f"New bucket ID before testing for conflicts is {bucketID}")
+            #print(f"New bucket ID before testing for conflicts is {bucketID}")
             #print(f"Characters in ID is {len(bucketID)}")
         
             finalBucket.append(bucketID)
@@ -654,7 +663,125 @@ def generateTimestamp():
     return TimeStamp
 
 
+def getPublicIp():
+    #this function gets our pulic ip by hitting a webpage
 
+    data = str(urlopen('http://checkip.dyndns.com/').read())
+    
+
+    ipstring = re.compile(r'Address: (\d+\.\d+\.\d+\.\d+)').search(data).group(1)
+
+    return ipstring
+
+
+def getBucketIPArray(bucketNumber):
+    #TODO make list called IpArray, for us to send to. also Do not allow duplicate IPs within the list
+    ipList = []
+    onlineMemberList = []
+    if os.path.exists("BluBucket.txt"):
+        #here we open the file
+        with open('BluBucket.txt') as FileLoad:
+            input_json = json.load(FileLoad)
+            #DebuggingStat  print(f'heres input_json {input_json}')
+            FileLoad.close()#new
+
+            refined = input_json[f"bucket{bucketNumber[0]}"]
+            scope = refined["Members"]
+            print("hey bro heres scope stuff")
+            currentTime = generateTimestamp()
+            for x in scope:
+
+                ipList.append(x)
+                
+                
+                time = x["TimeStamp"]
+                onlineIPs = x["ip"]
+
+                if time > (currentTime -3000):
+                    onlineMemberList.append(onlineIPs)
+            
+
+            print(f"\nIn bucket {bucketNumber} there are currently {len(onlineMemberList)}/{len(ipList)} members online")
+            print(f"the following IPs are online: {onlineMemberList}")
+            return ipList
+    else:
+        print("try Again broski, nobody else has been here")
+        return ipList
+
+def BucketAnnounce(bucketNumber):
+    global GUID
+    global keylist
+    
+    #print(bucketNumber)
+    #print(f"len of bucketNumber is {len(bucketNumber)}")
+    
+
+    if len(keylist) == 0:
+        keylist = ECCkeygen()
+
+    if len(bucketNumber) == 0:
+        bucketNumber.append(activeKeyDict['BucketNumber'])
+
+    timestamp = generateTimestamp()
+    #print(keylist)
+    #this generates a timestamp in seconds since unix epoch
+    #print(f'this is keylist1 {keylist[1]}')
+    stringKeys = str(keylist[1])
+    print("Adding Bucket Info to Bucket-Block")
+    #TODO include way to count entries and add our number here eg users(guid) or user1, user2
+    print(f'bucket number is {bucketNumber}')
+    ip = getPublicIp()
+    
+    #this function gets our publicly facing IP even behind a SOHO/ NAT
+
+    
+    MemberInfo = {"ip": ip, "TimeStamp": timestamp}
+
+    MemList= []
+
+    MemList = getBucketIPArray(bucketNumber)
+    
+    MemList.append(MemberInfo)
+
+    bucketJson = {"BucketNumber": bucketNumber[0], "Members": MemList}
+    bucketContainer = {f"bucket{bucketNumber[0]}": bucketJson}
+
+    #this is going to be written to our FakeBluZelleBucket.txt, this is simalating another key in the value store being used
+    #for this part be ause this is a second json object. When we get what bucket A user belongs to we can search for key
+    # "bucket{DestinationBucketNumber}" we can count population by kounting how many values are stored under key "members"
+    #like this. Searchbucket = bucketContainer[f"bucket{bucketNumber}"]
+    # populationList = (Searchbucket["Members"]).count()
+    # This should return how many are in the bucket to build the local bucket file from. We will save the IPs+ timestamps locally in ram
+    # and update every 5 minutes we will add a 1 minute degree of randomness to how we update our 
+    # timestamp to help security when we logout. We might also make buckets bigger depending on latency
+
+
+    ## we will call a func to see if this entry exists. This will determine overwrite or not. 
+    # on the make we must check GUID against usrers
+    if os.path.exists("BluBucket.txt"):
+
+        with open('BluBucket.txt') as FileLoad:
+            input_json = json.load(FileLoad)
+            #DebuggingStat  print(f'heres input_json {input_json}')
+
+            input_json.update(bucketContainer)
+            ##DebuggingStatment print(f"inside update = {input_json}")
+        FileLoad.close()
+       ##debuggingStatment print(f"here is outside {input_json}")
+
+        with open('BluBucket.txt', 'w') as BucketBlu:
+            json.dump(input_json, BucketBlu)
+        BucketBlu.close()
+            #FileLoad.write(updatedJson)
+            ##json.dump(container, FakeBlu)
+        print("Successful Network Update")
+        
+    else:
+        with open('BluBucket.txt', 'w+') as BucketBlu:
+            json.dump(bucketContainer, BucketBlu)
+        BucketBlu.close()
+    
+    print("We have Updated the Bucket Data")
 
 def NetworkAnnounce(bucketNumber):
     #this function announces us to the network. We will use the Bluzelle announce function to continually update timestamp
@@ -679,7 +806,8 @@ def NetworkAnnounce(bucketNumber):
     stringKeys = str(keylist[1])
     print("Now appending public Key and GUID with timestamp to the dictionary")
     #TODO include way to count entries and add our number here eg users(guid) or user1, user2
-    print(f'bucket number is {bucketNumber}')
+    #print(f'bucket number is {bucketNumber}')
+
     users = {"GUID": GUID, "PublicKey": stringKeys, "TimeStamp": timestamp, "BucketNumber": bucketNumber[0]}
     container = {f"user{GUID}": users}
 

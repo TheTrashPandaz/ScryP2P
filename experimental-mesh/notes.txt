@@ -4,3 +4,7 @@ we will implement a unique network. We will leverage bluezelle nodes as "routers
 MILESTONE 1)
  send out message with hashed username/GUID, and have server recieve it, mark them as "active in the swarm" and append them to a table along with groups they are associated with. 
 
+TODO:
+Create a second Fey value store for the ip buckets containing 
+bucketJson = {"BucketNumber", BucketNumber, Members {ip, timestamp}}
+buckets = {f"Bucket{BucketNumber}": bucketJson}
